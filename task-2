@@ -1,0 +1,74 @@
+#include <iostream>
+#include <map>
+#include <vector>
+#include <cmath>
+#include <nlohmann/json.hpp>  // Include JSON library
+
+using json = nlohmann::json;
+using namespace std;
+
+// Function to convert a number from any base to decimal
+long long convertToDecimal(string value, int base) {
+    long long result = 0;
+    long long power = 1;
+
+    for (int i = value.size() - 1; i >= 0; --i) {
+        int digit = (value[i] >= '0' && value[i] <= '9') ? (value[i] - '0') : (value[i] - 'a' + 10);
+        result += digit * power;
+        power *= base;
+    }
+
+    return result;
+}
+
+// Function to apply Lagrange Interpolation to find f(0)
+double lagrangeInterpolation(vector<pair<int, long long>> points) {
+    double result = 0.0;
+
+    for (int i = 0; i < points.size(); i++) {
+        double term = points[i].second;
+
+        for (int j = 0; j < points.size(); j++) {
+            if (i != j) {
+                term *= (0 - points[j].first) / (double)(points[i].first - points[j].first);
+            }
+        }
+
+        result += term;
+    }
+
+    return result;
+}
+
+int main() {
+    string input;
+    getline(cin, input);  // Read JSON input as a string
+
+    json jsonData = json::parse(input);
+    int n = jsonData["keys"]["n"];
+    int k = jsonData["keys"]["k"];
+
+    vector<pair<int, long long>> points;
+
+    // Extract the first k points from the JSON
+    for (auto& item : jsonData.items()) {
+        if (item.key() == "keys") continue;
+
+        int x = stoi(item.key());  // x-coordinate (root)
+        int base = item.value()["base"];
+        string valueStr = item.value()["value"];
+
+        long long y = convertToDecimal(valueStr, base);  // Convert to decimal
+
+        points.push_back({x, y});
+
+        if (points.size() == k) break;
+    }
+
+    // Find the constant term using Lagrange interpolation
+    double c = lagrangeInterpolation(points);
+
+    cout << "Constant term (c) of the polynomial: " << round(c) << endl;
+
+    return 0;
+}

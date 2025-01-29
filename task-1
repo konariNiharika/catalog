@@ -1,74 +1,62 @@
-#include <iostream>
-#include <map>
-#include <vector>
-#include <sstream>
-#include <cmath>
-#include <nlohmann/json.hpp>  // For parsing JSON
+const fs = require('fs');
+const readline = require('readline');
 
-using json = nlohmann::json;
-using namespace std;
-
-// Convert a number from a given base to decimal
-int convertToDecimal(string value, int base) {
-    int result = 0;
-    int power = 1;
-    
-    for (int i = value.size() - 1; i >= 0; --i) {
-        int digit = (value[i] >= '0' && value[i] <= '9') ? (value[i] - '0') : (value[i] - 'A' + 10);
-        result += digit * power;
-        power *= base;
-    }
-    
-    return result;
+// Function to convert a number from a given base to decimal
+function convertToDecimal(base, value) {
+    return parseInt(value, base);
 }
 
-// Lagrange interpolation to find f(0) (constant term c)
-double lagrangeInterpolation(vector<pair<int, int>> points) {
-    double result = 0.0;
-    
-    for (int i = 0; i < points.size(); i++) {
-        double term = points[i].second;
-        for (int j = 0; j < points.size(); j++) {
-            if (i != j) {
-                term *= (0 - points[j].first) / (double)(points[i].first - points[j].first);
-            }
+// Function to compute the constant term 'c' using the given JSON input
+function findConstantTerm(jsonData, k) {
+    let roots = [];
+
+    // Extract and convert root values
+    for (let key in jsonData) {
+        if (key !== "keys") {
+            let base = parseInt(jsonData[key].base);
+            let value = jsonData[key].value;
+            roots.push(convertToDecimal(base, value));
         }
-        result += term;
     }
-    
-    return result;
+
+    // Sort the roots to ensure the lowest indices are picked
+    roots.sort((a, b) => a - b);
+
+    // Compute the constant term using the first k roots
+    let constantTerm = 1;
+    for (let i = 0; i < k; i++) {
+        constantTerm *= roots[i];
+    }
+
+    return constantTerm;
 }
 
-int main() {
-    string input;
-    getline(cin, input);  // Read JSON input as string
-    
-    json jsonData = json::parse(input);
-    
-    int n = jsonData["keys"]["n"];
-    int k = jsonData["keys"]["k"];
-    
-    vector<pair<int, int>> points;
+// Function to get user input
+async function getUserInput() {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
 
-    // Extract the first k points from the JSON
-    for (auto& item : jsonData.items()) {
-        if (item.key() == "keys") continue;
-        
-        int x = stoi(item.key());  // x-coordinate (root)
-        int base = item.value()["base"];
-        string valueStr = item.value()["value"];
-        
-        int y = convertToDecimal(valueStr, base);  // Convert value to decimal
-        
-        points.push_back({x, y});
-        
-        if (points.size() == k) break;
+    const askQuestion = (query) => new Promise(resolve => rl.question(query, resolve));
+
+    try {
+        const n = await askQuestion("Enter n (total roots provided): ");
+        const k = await askQuestion("Enter k (minimum roots required): ");
+        const filename = await askQuestion("Enter JSON filename (e.g., data.json): ");
+        rl.close();
+
+        // Read and parse the JSON file
+        const jsonString = fs.readFileSync(filename, 'utf8');
+        const jsonData = JSON.parse(jsonString);
+
+        // Compute and print the constant term
+        const result = findConstantTerm(jsonData, parseInt(k));
+        console.log("Constant term (c):", result);
+    } catch (error) {
+        console.error("Error reading input:", error);
     }
-    
-    // Find the constant term using Lagrange interpolation
-    double c = lagrangeInterpolation(points);
-    
-    cout << "Constant term (c) of the polynomial: " << round(c) << endl;
-    
-    return 0;
 }
+
+// Run the function to get input and process the JSON
+getUserInput();
